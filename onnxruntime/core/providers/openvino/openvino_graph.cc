@@ -424,6 +424,8 @@ void OpenVINOGraph::Infer(Ort::CustomOpApi ort, OrtKernelContext* context) {
   // Currently allows only one Infer execution at a time
   std::lock_guard<std::mutex> lock(compute_lock_);
 
+    std::cout << "OV" << std::endl;
+
   // Get Input and Output tensors
   size_t input_count = openvino_network_->getInputsInfo().size();
   size_t output_count = openvino_network_->getOutputsInfo().size();
