@@ -182,8 +182,9 @@ void OpenVINOGraph::ConvertONNXModelToOpenVINOIR(const std::string& onnx_model,
 std::shared_ptr<InferenceEngine::CNNNetwork> OpenVINOGraph::BuildOpenVINONetworkWithMO() {
 
   const auto& attributes = fused_node_->GetAttributes();
-  std::string xml_string = attributes.at("xml_str").s();
-  std::string weights_string = attributes.at("weights_str").s();
+  const std::string& xml_string = attributes.at("xml_str").s();
+  const std::string& weights_string = attributes.at("weights_str").s();
+
   InferenceEngine::TBlob<uint8_t>::Ptr weightsPtr(
       new InferenceEngine::TBlob<uint8_t>(InferenceEngine::Precision::U8,
                                           InferenceEngine::Layout::C, {weights_string.size()}));

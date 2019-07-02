@@ -33,8 +33,7 @@ OpenVINOExecutionProvider::OpenVINOExecutionProvider(OpenVINOExecutionProviderIn
   InsertAllocator(CreateAllocator(device_info));
 }
 
-static ONNX_NAMESPACE::ModelProto GetModelProtoFromFusedNode(const onnxruntime::GraphViewer& graph_viewer) {
-  ONNX_NAMESPACE::ModelProto model_proto;
+void  GetModelProtoFromFusedNode(const onnxruntime::GraphViewer& graph_viewer, ONNX_NAMESPACE::ModelProto& model_proto) {
   auto graph_proto = model_proto.mutable_graph();
 
   for (const auto& node : graph_viewer.Nodes()) {
@@ -59,8 +58,6 @@ static ONNX_NAMESPACE::ModelProto GetModelProtoFromFusedNode(const onnxruntime::
   opset->set_domain(kOnnxDomain);
   opset->set_version(graph_viewer.DomainToVersionMap().at(kOnnxDomain));
   model_proto.set_ir_version(ONNX_NAMESPACE::Version::IR_VERSION);
-
-  return model_proto;
 }
 
 //Gets the input count of given node
@@ -202,13 +199,11 @@ bool IsOpSupported(std::string name){
 
 //Checks if the entire graph is supported by OpenVINO EP and returns false if it is not.
 
-bool IsGraphSupported(const onnxruntime::GraphViewer& graph_viewer, std::string dev_id){
+bool IsGraphSupported(const onnxruntime::GraphViewer& graph_viewer, std::string dev_id, ONNX_NAMESPACE::ModelProto& model_proto){
 
   const auto& initializers = graph_viewer.GetAllInitializedTensors();
 
   auto node_indexes = graph_viewer.GetNodesInTopologicalOrder();
-
-  auto model_proto = GetModelProtoFromFusedNode(graph_viewer);
 
   auto graph_proto = model_proto.mutable_graph();
   int input_dims = 0;
@@ -451,17 +446,21 @@ std::vector<std::unique_ptr<ComputeCapability>> OpenVINOExecutionProvider::GetCa
   int counter = 0;
   std::unique_ptr<IndexedSubGraph> sub_graph = std::make_unique<IndexedSubGraph>();
 
-  auto model_proto = GetModelProtoFromFusedNode(graph_viewer);
+  auto model_proto = std::make_shared<ONNX_NAMESPACE::ModelProto>();
+  GetModelProtoFromFusedNode(graph_viewer, *model_proto);
 
   std::set<const onnxruntime::NodeArg*> fused_inputs, fused_outputs;
 
-  if (!IsGraphSupported(graph_viewer,device_id)) {
+  if (!IsGraphSupported(graph_viewer,device_id, *model_proto)) {
     LOGS_DEFAULT(WARNING) << openvino_ep::OpenVINOGraph::log_tag << "Rejecting as graph has unsupported operations.";
     return result;
   }
 
   std::string model_proto_strbuf;
-  model_proto.SerializeToString(&model_proto_strbuf);
+  model_proto->SerializeToString(&model_proto_strbuf);
+
+  // Free up memory consumed by model_proto
+  model_proto->Clear();
 
   std::string xml_string, weights_string;
 
